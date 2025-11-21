@@ -23,7 +23,7 @@ At the top level:
 Lawgpt/
 ├─ lawgpt-backend/         # FastAPI backend + PDF ingestion (v1 production API)
 ├─ legal-nexus-keeper/     # React/Vite frontend (Legal Nexus UI)
-└─ external-lawgpt/        # Advanced LawGpt v2: MCP-style router + agents (reference/extension)
+└─ external-lawgpt/        # Advanced LawGpt v2: MCP-style router + agents
 ```
 
 ### 1.1 Backend – `lawgpt-backend/`
@@ -52,7 +52,7 @@ Key content:
 
 ### 1.3 Advanced Agents & MCP Router – `external-lawgpt/`
 
-This folder contains the **v2 architecture** of LawGpt, brought into this monorepo for research and future integration. It is logically separate from the `lawgpt-backend` FastAPI app, but works over the same legal domain.
+This folder contains the **v2 architecture** of LawGpt, brought into this monorepo for research and future integration.
 
 Key pieces:
 
@@ -91,7 +91,7 @@ Key pieces:
   - `Dockerfile.router`, `Dockerfile.search` – container images for router and search agent.
   - `deployment/deploy.sh`, `deploy_with_credentials.sh` – example deploy scripts for GCP.
 
-> **Note:** In this repository, `external-lawgpt` is treated as a **v2 reference/extension** of the core system. The main frontend currently consumes the simpler `lawgpt-backend` endpoints, while the MCP router and agents provide a more advanced architecture that can be integrated later without breaking the v1 API.
+
 
 ---
 
