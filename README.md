@@ -1,15 +1,17 @@
 # LawGPT / Legal Nexus Keeper – Setup & Usage Guide
 
-This workspace has **two main projects** working together:
+This workspace has **two main application projects** plus an **advanced agentic routing layer**:
 
-1. **Backend – lawgpt-backend** (FastAPI + Firestore)
-2. **Frontend – legal-nexus-keeper** (React + Vite app)
+1. **Backend – lawgpt-backend** (FastAPI + Firestore, production API)
+2. **Frontend – legal-nexus-keeper** (React + Vite app, deployed on Firebase Hosting)
+3. **Advanced Agents / MCP Router – external-lawgpt** (next‑gen architecture used for intent routing and multi‑agent orchestration)
 
 Together they provide:
 
 - Ingestion of Indian law PDFs into **Google Firestore**
-- API endpoints to **search laws** and **explain** legal queries
-- A modern web UI with **Legal Search** and **Legal Assistant (chatbot)** that use your real data (no demo data).
+- Stable REST API endpoints to **search laws** and **explain** legal queries
+- A modern web UI with **Legal Search** and **Legal Assistant (chatbot)** that use real data (no demo data)
+- A **v2 agentic design** (in `external-lawgpt`) that adds intent detection, tool‑based agents, and a central router over the same legal corpus.
 
 ---
 
@@ -19,8 +21,9 @@ At the top level:
 
 ```text
 Lawgpt/
-├─ lawgpt-backend/         # FastAPI backend + PDF ingestion
-└─ legal-nexus-keeper/     # React/Vite frontend (Legal Nexus UI)
+├─ lawgpt-backend/         # FastAPI backend + PDF ingestion (v1 production API)
+├─ legal-nexus-keeper/     # React/Vite frontend (Legal Nexus UI)
+└─ external-lawgpt/        # Advanced LawGpt v2: MCP-style router + agents (reference/extension)
 ```
 
 ### 1.1 Backend – `lawgpt-backend/`
@@ -46,6 +49,49 @@ Key content:
   - Other pages: Dashboard, Cases, Documents, Drafting, etc. (UI shell around core features).
 - `src/utils/` – helpers for API calls (e.g. `chatUtils.ts`).
 - `public/` – favicon, OG image, redirects, etc.
+
+### 1.3 Advanced Agents & MCP Router – `external-lawgpt/`
+
+This folder contains the **v2 architecture** of LawGpt, brought into this monorepo for research and future integration. It is logically separate from the `lawgpt-backend` FastAPI app, but works over the same legal domain.
+
+Key pieces:
+
+- `services/main_router.py`
+  - Central **MCP‑style router** service (FastAPI).
+  - Endpoints:
+    - `GET /health` – health/status of router and configured agents.
+    - `POST /chat` – single entrypoint that detects user intent and routes to underlying agents.
+    - `POST /search-law` – advanced search API using keyword extraction and Firestore.
+    - `POST /explain-law` – explanation API built on top of Firestore + Gemini.
+  - Responsibilities:
+    - Uses **GeminiClient** (`utils/gemini_client.py`) to detect intent and complexity from the user query.
+    - Decides whether the request is primarily **legal search** (case/act retrieval) or **legal‑ai** (analysis & drafting).
+    - Calls downstream agent services in parallel via async HTTP (`call_agent_service`).
+    - Merges results, examples:
+      - In `legal_search` mode → returns ranked cases/snippets and a summary.
+      - In `legal_ai` mode → combines case search results + analysis agent output into a single response.
+
+- Agent services (`services/legal_search_agent.py`, `services/legal_ai_agent.py`):
+  - Encapsulate specific capabilities behind a clean interface so the router can treat them as **tools/agents**.
+  - `legal_search_agent` focuses on:
+    - Case and act retrieval over Firestore (and optionally BigQuery),
+    - Query expansion, topic/jurisdiction filtering.
+  - `legal_ai_agent` focuses on:
+    - Deep analysis, argument building, summarisation, and drafting using Gemini.
+
+- Shared utilities under `external-lawgpt/utils/`:
+  - `gemini_client.py` – wrapper around the Gemini API with reusable prompts.
+  - `firestore_client.py` – encapsulates Firestore access for acts and cases.
+  - `keyword_extractor.py` – extracts domain‑specific keywords and filters legal stop‑words.
+  - `language_detector.py` – detects Hinglish vs English preference.
+  - `logger.py` – consistent structured logging across services.
+
+- Configuration & deployment:
+  - `config/settings.py` – central configuration (Gemini model names, service URLs, API keys, project IDs, etc.).
+  - `Dockerfile.router`, `Dockerfile.search` – container images for router and search agent.
+  - `deployment/deploy.sh`, `deploy_with_credentials.sh` – example deploy scripts for GCP.
+
+> **Note:** In this repository, `external-lawgpt` is treated as a **v2 reference/extension** of the core system. The main frontend currently consumes the simpler `lawgpt-backend` endpoints, while the MCP router and agents provide a more advanced architecture that can be integrated later without breaking the v1 API.
 
 ---
 
@@ -330,34 +376,42 @@ Fix:
 
 ## 8. High-Level Architecture
 
-1. **Data Ingestion** – `ingest_pdf.py`
-   - Converts raw PDFs of Acts/Judgments → structured docs in Firestore `acts` collection.
+The overall system now has **two layers**:
 
-2. **Backend Intelligence** – `main.py`
-   - Builds a Firestore client using Google service account.
-   - Implements:
-     - Keyword extraction from user query
-     - Simple scoring of documents
-     - Hinglish preference detection
-     - Optional integration with Gemini for richer reasoning (if configured).
+1. **Core v1 stack (currently wired to the UI)**
+   - Data ingestion → Firestore (`lawgpt-backend/ingest_pdf.py`).
+   - REST API → `/search-law`, `/explain-law` in `lawgpt-backend/main.py`.
+   - Frontend → `legal-nexus-keeper` React app that calls these endpoints.
 
-3. **APIs** – REST endpoints consumed by frontend:
-   - `/search-law` – returns ranked snippets.
-   - `/explain-law` – returns explanations plus supporting context.
+2. **Advanced v2 agentic stack (MCP‑style, in `external-lawgpt/`)**
+   - **Main Router** (`services/main_router.py`):
+     - Detects intent (search vs analysis) using Gemini.
+     - Fans out requests to **Legal Search Agent** and **Legal AI Agent**.
+     - Aggregates/merges responses into a single ChatResponse with diagnostics and sources.
+   - **Agents as tools**:
+     - `legal_search_agent` – wraps Firestore search, topic/jurisdiction filters, and ranking.
+     - `legal_ai_agent` – wraps Gemini reasoning, drafting, and structured analysis.
+   - **Shared tooling** (`utils/*`): Gemini client, Firestore client, language & keyword utilities.
 
-4. **Frontend Experience** – `legal-nexus-keeper` React app:
-   - **Legal Search**: fast exploration of acts and case snippets.
-   - **Legal Assistant**: conversational interface over the same data.
+This design lets you:
+
+- Keep the current v1 backend + UI completely stable.
+- Experiment with more advanced **agentic workflows, routing, and MCP concepts** in `external-lawgpt`.
+- Later, gradually swap the frontend or backend endpoints to talk to the router instead of the basic v1 API, without rewriting the whole app.
 
 ---
 
 ## 9. Notes & Next Steps
 
 - Demo/sample data has been removed from core legal search & chatbot; everything now depends on your **real PDFs + Firestore**.
-- Additional improvements you can add later:
-  - Highlighting of matched keywords within snippets.
-  - Deep links to PDF viewer for a specific page referenced by a result.
-  - User authentication / per-user saved searches and bookmarks.
+- The `external-lawgpt` folder gives you a ready‑made blueprint for:
+  - Multi‑agent orchestration over legal data.
+  - Intent‑aware routing for different modes (case retrieval vs deep analysis).
+  - GCP‑ready Dockerfiles and deploy scripts for an MCP‑style router.
+- Future work in this repo can include:
+  - Pointing the frontend chatbot to the **main router `/chat`** endpoint instead of the basic `/explain-law`.
+  - Exposing router/agents as MCP tools to other clients.
+  - Adding more agents (e.g. document drafter, compliance checker, argument builder) that plug into the same router.
 
 This README is tailored to the current state of your project on macOS. Adjust paths and commands slightly if you move the project or run on another OS.
 # LawGptGoogle
