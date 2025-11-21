@@ -5,3 +5,4 @@ google-cloud-firestore
 uvicorn[standard]
 python-dotenv
 pdfplumber
+google-generativeai
