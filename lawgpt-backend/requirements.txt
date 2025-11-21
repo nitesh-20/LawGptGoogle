@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+pydantic
+google-cloud-firestore
+uvicorn[standard]
+python-dotenv
+pdfplumber
