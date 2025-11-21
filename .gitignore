@@ -1,0 +1,32 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Node / Vite
+node_modules/
+.vite/
+dist/
+build/
+legal-nexus-keeper/node_modules/
+legal-nexus-keeper/dist/
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Google credentials and other JSON secrets - NEVER COMMIT
+*.json
+# But allow project config JSON files
+!package.json
+!package-lock.json
+!tsconfig.json
+!tsconfig.*.json
+!components.json
+!tailwind.config.ts
+!vite.config.ts
+
+# Explicitly ignore any JSON in backend (service accounts, etc.)
+lawgpt-backend/*.json
