@@ -1,5 +1,11 @@
 # LawGPT / Legal Nexus Keeper – Setup & Usage Guide
 
+Live Working Link: https://law-gpt-1c925.firebaseapp.com/
+Blog Link: https://medium.com/@iamshreedshrivastava/lawgpt-architecting-the-agentic-future-of-justice-in-india-a-blueprint-for-scale-and-impact-dde591c65845
+Register for Code Vipassana sessions
+Join the meetup group Datapreneur Social
+Sign up to become Google Cloud Innovator
+
 This workspace has **two main application projects** plus an **advanced agentic routing layer**:
 
 1. **Backend – lawgpt-backend** (FastAPI + Firestore, production API)
